@@ -1,0 +1,26 @@
+version : "3.1"
+
+services:
+  bdd:
+    image: mariadb
+    restart: always
+    environment:
+        - MARIADB_USER=User
+        - MARIADB_PASSWORD=Password
+        - MARIADB_DATABASE=TestSnake
+        - MARIADB_RANDOM_ROOT_PASSWORD=YES
+    ports:
+      - 33333:3306
+  admin:
+    depends_on:
+      - bdd
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 9090:80
+    environment:
+      - MYSQL_USER=User
+      - MYSQL_PASSWORD=Password
+      - MYSQL_DATABASE=TestSnake
+      - PMA_HOST=bdd
+
