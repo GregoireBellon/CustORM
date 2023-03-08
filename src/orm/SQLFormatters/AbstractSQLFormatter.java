@@ -1,11 +1,9 @@
 package orm.SQLFormatters;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.List;
 
 import orm.DataField;
-import orm.DataTypes;
 import orm.selection.Selector;
 
 public abstract class AbstractSQLFormatter {

@@ -1,27 +1,28 @@
 package orm;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.math.BigInteger;
-import java.sql.Connection;
-import java.sql.ResultSet;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import orm.SQLFormatters.AbstractSQLFormatter;
-import orm.SQLFormatters.MySQLFormatter;
 import orm.annotations.Column;
+import orm.annotations.Foreign;
+import orm.annotations.Id;
+import orm.annotations.NotNull;
 import orm.annotations.Table;
 import orm.exceptions.DaoObjectNotValidException;
 import orm.selection.Comparator;
 import orm.selection.Selector;
-import tests.examples_entities.User;
+import orm.utils.StringConversions;
 
 public class ORM <T extends Entity>{
 
@@ -29,60 +30,60 @@ public class ORM <T extends Entity>{
 
 	private String table_name; 
 	private List<DataField> fields;
-	
+
 	private AbstractSQLFormatter formatter;
-	
-	
-	
+
+
+
 	@SuppressWarnings("unchecked")
 	public ORM(Class<? extends Entity> type, AbstractSQLFormatter formatter) throws DaoObjectNotValidException { 
 		this.type = (Class<T>) type; 
 		this.formatter = formatter;
-		
+
 		coherenceChecking(type);		
-		
+
 		this.table_name = type.getAnnotation(Table.class).name();
-		
+
 		this.fields = getFields(type);
-	
+
 	}
 
-	
-//	Récupère le premier champ ID
+
+	//	Récupère le premier champ ID
 	public T getById(long num_id) throws NoSuchFieldException, SQLException {
 		DataField id = fields.stream().filter(data -> data.getType() == DataTypes.ID).toList().get(0);
-		
+
 		if(id == null) {
 			throw new NoSuchFieldException("There is no id field in this object " + type);
 		}
-		
+
 		List<List<Selector>> selectors = new LinkedList<List<Selector>>();
-		
+
 		List<Selector> s = new ArrayList<Selector>();
-		
+
 		s.add(new Selector(id, Comparator.EQUALS, num_id));
 
 		return this.getOne(selectors);
-		
+
 	}
-	
+
 	//	TODO : HANDLE SQL EXCEPTION
 	public T getOne(List<List<Selector>> selectors) throws NoSuchFieldException, SQLException {
 
 		try {
-	
-		List<DataField> fields = getFields(this.type);
-		
-		this.formatter.selectOne(table_name, fields, selectors);
-		
-		Constructor<T> empty_constructor = type.getConstructor(new Class<?>[]{});
-		
-		T obj = empty_constructor.newInstance(new Object[] {});
-		
-		populateFromFields(fields, obj);
-		
-		return obj;
-			
+
+			List<DataField> fields = getFields(this.type);
+
+			this.formatter.selectOne(table_name, fields, selectors);
+
+			Constructor<T> empty_constructor = type.getConstructor(new Class<?>[]{});
+
+			T obj = empty_constructor.newInstance(new Object[] {});
+
+			populateFromFields(fields, obj);
+
+			return obj;
+
 		} catch (NoSuchMethodException | SecurityException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -102,45 +103,45 @@ public class ORM <T extends Entity>{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		return null;
 	}
 
 	public List<T> getAll() {
 		return getAll(null, -1);
 	}
-	
+
 	public List<T> getAll(List<List<Selector>> selectors) {	
 		return getAll(selectors, -1);
 	}
-	
+
 	public List<T> getAll(int limit){
 		return getAll(null, limit);
 	}
-	
-	
+
+
 	public List<T> getAll(List<List<Selector>> selectors, int limit) {
-		
+
 		List<T> ret = new ArrayList<T>();
-		
+
 		try {
-			
-		List<DataField> object_fields = getFields(this.type);
-		
-		List<List<DataField>> query_result =  this.formatter.selectMultiple(table_name, object_fields, selectors, limit);
-		
-		for(List<DataField> single_result : query_result) {
-			
-			Constructor<T> empty_constructor = type.getConstructor(new Class<?>[]{});
-			
-			T obj = empty_constructor.newInstance(new Object[] {});
-			
-			populateFromFields(single_result, obj);
-			
-			ret.add(obj);
-					
-		}
-		
+
+			List<DataField> object_fields = getFields(this.type);
+
+			List<List<DataField>> query_result =  this.formatter.selectMultiple(table_name, object_fields, selectors, limit);
+
+			for(List<DataField> single_result : query_result) {
+
+				Constructor<T> empty_constructor = type.getConstructor(new Class<?>[]{});
+
+				T obj = empty_constructor.newInstance(new Object[] {});
+
+				populateFromFields(single_result, obj);
+
+				ret.add(obj);
+
+			}
+
 		} catch (NoSuchMethodException | SecurityException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -160,133 +161,249 @@ public class ORM <T extends Entity>{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		return ret;
 	}
 
-			
-	public void create(T inserted) {
-		
+
+	public long create(T inserted) {
+
 		List<DataField> populated = this.populateToFields(this.fields, inserted);
-		
+
 		List<DataField> fields_excepted_id = populated.stream()
-		  .filter(field -> 
-			  {
-				try {
-					return !(field.getType() == DataTypes.ID) && field.getClass_field().get(inserted) != null;
-				} catch (IllegalArgumentException | IllegalAccessException e) {
-					System.err.println("ORM : Error while accessing to " + inserted.getClass().toString() + " object.\n"
-							+ "Field : " + field.getClass_field().toString());
-					return false;
+				.filter(field -> 
+				{
+					try {
+						return !(field.getType() == DataTypes.ID) && field.getValue() != null;
+					} catch (IllegalArgumentException e) {
+						System.err.println("ORM : Error while accessing to " + inserted.getClass().toString() + " object.\n"
+								+ "Field : " + field.getClass_field_name());
+						return false;
+					}
 				}
-			}
-		  ).collect(Collectors.toList());
-		
-		long id =formatter.insert(table_name, fields_excepted_id);
-		
+						).collect(Collectors.toList());
+
+		long id = formatter.insert(table_name, fields_excepted_id);
+
+		return id;
 	}
 
 	public void persist(T persisted) {
-		
+
 		List<DataField> populated = this.populateToFields(this.fields, persisted);
 
 		List<List<Selector>> selector = new ArrayList<List<Selector>>();
 
 		List<Selector> id_equality = new ArrayList<Selector>();
-		
-		populated.stream().filter(field -> field.getClass_field().getAnnotation(Column.class).datatype() == DataTypes.ID)
+
+		populated.stream().filter(field -> field.getType() == DataTypes.ID)
 		.collect(Collectors.toList())
 		.forEach(field -> id_equality.add(new Selector(field, Comparator.EQUALS, (Number) field.getValue())));;
-		
+
 		selector.add(id_equality);
-		
+
 		formatter.update(this.table_name, populated, selector);
-		
+
 	}
-	
+
 	private List<DataField> populateToFields(List<DataField> fields, T object){
-		
+
 		for(DataField field : fields) {
+
+			System.out.println("Trying datafield " + field.getClass_field_name());
 			try {
-				
-				System.out.println("field value : " + field.getClass_field().get(object));
-				
-				field.setValue(field.getClass_field().get(object));
-			} catch (IllegalArgumentException | IllegalAccessException e) {
-				
+
+				field.setValue(type.getField(field.getClass_field_name()).get(object));
+
+			} catch (IllegalArgumentException | IllegalAccessException  | SecurityException  e) {
+
 				System.err.println("The object is not well formed");
 				e.printStackTrace();
-			
+
+			} catch (NoSuchFieldException e) {
+				try {
+					Method getter = field.getEntity_class().getMethod(StringConversions.toLowerCamelCase("get_"+field.getClass_field_name()));
+
+					field.setValue(getter.invoke(object));
+				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException  e1) {
+					//				Erreur check dans coherence exception
+					e1.printStackTrace();
+				}
+
 			}
 		}
-		
+
 		return fields;
 	}
-	
+
 	private void populateFromFields(List<DataField> fields, T object){
-		
+
 		for(DataField field : fields) {
 			try {
-				field.getClass_field().set(object, field.getValue());
-			} catch (IllegalArgumentException | IllegalAccessException e) {
-				
+				type.getField(field.getClass_field_name()).set(object, field.getValue());
+
+			}
+			catch (IllegalArgumentException | IllegalAccessException  | SecurityException  e) {
+
 				System.err.println("The object is not well formed");
 				e.printStackTrace();
-			
+
+			} catch (NoSuchFieldException e) {
+				try {
+					Method setter = field.getEntity_class().getMethod(StringConversions.toLowerCamelCase("set_"+field.getClass_field_name()), field.getClass_field_type());
+					setter.invoke(object, field.getValue());
+
+				}catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException  e1) {
+					//				Erreur check dans coherence exception
+					e1.printStackTrace();
+				}
+
+
+
 			}
 		}
 	}
-	
 
-	
-	
+
+
+
+	@SuppressWarnings("unchecked")
 	public static List<DataField> getFields(Class<? extends Entity> mon_entite) throws DaoObjectNotValidException {
-				
+
 		String table_name = mon_entite.getAnnotation(Table.class).name();
-		
+
 		List<DataField> fields = new ArrayList<DataField>();
-		
+
+
+		//		Récupération des fields publiques
+
+
 		for(Field field : mon_entite.getFields()) {
-			
+
 			if(field.isAnnotationPresent(Column.class)) {
-				Column a = field.getAnnotation(Column.class);
-				fields.add(new DataField(a.datatype(), a.name(), field, table_name));
+
+				DataField added_datafield = new DataField(field);
+
+				if(field.isAnnotationPresent(Id.class)) {
+					added_datafield.getConstraints().add(Constraint.ID);
+				}
+				if(field.isAnnotationPresent(NotNull.class)) {
+					added_datafield.getConstraints().add(Constraint.NOT_NULL);
+				}
+				if(field.isAnnotationPresent(Foreign.class)) {
+
+					Foreign annotation_foreign = field.getAnnotation(Foreign.class);
+
+					DescribeForeign foreign = new DescribeForeign(annotation_foreign.ForeignClass(), annotation_foreign.ForeignAttributeName());
+					added_datafield.setForeign(foreign);
+
+				}
+
+				fields.add(added_datafield);
+
+
 			}
-			
+
 		}
-		
+
+
+		//		Récupération des fields privés via la méthode getPrivateFields
+
+		//		Le checking est fait dans la fonction coherenceChecking
+
+		try {
+			@SuppressWarnings("unchecked")
+			List<DescribeField> private_fields = (List<DescribeField>) mon_entite.getMethod("getPrivateFields").invoke(null);
+
+			System.out.println("Nb de private fields : " + private_fields.size());
+
+			for(DescribeField field : private_fields) {
+				DataField added_datafield = new DataField(field.getType(), field.getNameInDb(),field.getField_type(),  field.getClassField_name(), mon_entite, table_name);
+
+				field.getConstraints().forEach(constraint -> added_datafield.getConstraints().add(constraint));
+
+				added_datafield.setForeign(field.getForeign());
+
+				fields.add(added_datafield);
+
+			}
+
+		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+				| SecurityException e) {
+			// Cette exception est déja check par le coherence checking, elle ne peut pas arriver
+			e.printStackTrace();
+		}
+
 		return fields;
 
 	}
-	
-	
-	
+
+
+
 	public static void coherenceChecking(Class<? extends Entity> mon_entite) throws DaoObjectNotValidException {
-		
+
 		if(!mon_entite.isAnnotationPresent(Table.class)) {
 			throw new DaoObjectNotValidException("This object is not declared has a database table");
 		}		
-		
+
+
+
+
+		try {
+			if(mon_entite.getMethod("getPrivateFields") == null 
+					|| mon_entite.getMethod("getPrivateFields").getReturnType() != List.class
+					|| !Modifier.isStatic(mon_entite.getMethod("getPrivateFields").getModifiers())) {	
+				throw new DaoObjectNotValidException("You shoud have a method public static List<DescribeField> getPrivateFields() in your class " + mon_entite);
+			}
+
+		} catch (NoSuchMethodException | SecurityException  e1) {
+			e1.printStackTrace();
+			//			throw new DaoObjectNotValidException("You shoud have a method public static List<DescribeField> getPrivateFields in your class");
+		}
+
+
+		//		Check que pour chaque field déclaré, il soit publique, ou ai un getter/setter.
+		try {
+			List<DescribeField> private_fields = (List<DescribeField>) mon_entite.getMethod("getPrivateFields").invoke(null);
+
+			for(DescribeField column : private_fields){
+				try {
+					mon_entite.getMethod(StringConversions.toLowerCamelCase("get_"+column.getClassField_name()));
+					mon_entite.getMethod(StringConversions.toLowerCamelCase("set_"+column.getClassField_name()), column.getField_type());
+
+				} catch (NoSuchMethodException | SecurityException e) {
+					e.printStackTrace();
+
+					throw new DaoObjectNotValidException("The field " + column.getClassField_name() + " is not public and doesnt have getter and setter \n"
+							+ "put it public or create getter in the form of getMyField");
+				}
+			}	
+		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
+				| SecurityException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
 	}
-	
+
 	public static void createTable(Class<? extends Entity> mon_entite, AbstractSQLFormatter formatter) throws DaoObjectNotValidException {
-		
+
 		coherenceChecking(mon_entite);
-		
+
 		String table_name = mon_entite.getAnnotation(Table.class).name();
-		
+
 		List<DataField> fields =  ORM.getFields(mon_entite);
-		
+
 		formatter.createTable(table_name, fields);
-	
-		
+
+
 	}
-	
+
 	public static void dropTable(Class<? extends Entity> mon_entite, AbstractSQLFormatter formatter) throws DaoObjectNotValidException {
-		
+
 		coherenceChecking(mon_entite);
 		formatter.dropTable(mon_entite.getAnnotation(Table.class).name());
-		
+
 	}
-	
+
 }

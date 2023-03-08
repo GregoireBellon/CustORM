@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import orm.Constraint;
 import orm.DataField;
 import orm.DataTypes;
 import orm.annotations.Column;
@@ -250,7 +251,7 @@ public int createTable(String table_name, List<DataField> fields) {
 		query_content += this.fieldCreateLine(field);
 	}
 
-	List<DataField> foreign_keys = fields.stream().filter(f -> f.getType() == DataTypes.FOREIGN).toList();
+	List<DataField> foreign_keys = fields.stream().filter(f -> f.getForeign()!=null).toList();
 
 	for(int i = 0; i < foreign_keys.size(); i++) {
 		DataField field = foreign_keys.get(i);
@@ -259,12 +260,10 @@ public int createTable(String table_name, List<DataField> fields) {
 			query_content += ", ";
 
 			java.lang.reflect.Field foreign_field;
-			foreign_field = field.getClass_field().getAnnotation(Foreign.class).ForeignClass().getDeclaredField(field.getClass_field().getAnnotation(Foreign.class).ForeignAttributeName());
 
+			query_content += " FOREIGN KEY ("+field.getName_in_db() + ") REFERENCES " + field.getForeign().getForeign_class().getAnnotation(Table.class).name() + "(" +  field.getForeign().getForeign_attribute_name() + ")" ;
 
-			query_content += " FOREIGN KEY ("+field.getName_in_db() + ") REFERENCES " + field.getClass_field().getAnnotation(Foreign.class).ForeignClass().getAnnotation(Table.class).name() + "(" +  foreign_field.getAnnotation(Column.class).name() + ")" ;
-
-		} catch (NoSuchFieldException | SecurityException e) {
+		} catch (SecurityException e) {
 			System.err.println("The field " + field + " is badly associated with it's foreign key");
 		}
 	}
@@ -319,7 +318,7 @@ private String fieldCreateLine(DataField field) {
 
 	String line = field.getName_in_db() +  " " +  datatypeConversion(field.getType());
 
-	if(field.getClass_field().isAnnotationPresent(NotNull.class)) {
+	if(field.getConstraints().contains(Constraint.NOT_NULL)) {
 		line += " NOT NULL";
 	}
 
@@ -374,7 +373,7 @@ public static String datatypeConversion(DataTypes datatype) {
 	case DATE : return "DATE";
 	case ID : return "SERIAL PRIMARY KEY";
 	case INT : return "INT";
-	case FOREIGN : return "BIGINT UNSIGNED";
+	case FOREIGN_ID : return "BIGINT UNSIGNED";
 	case BOOLEAN : return "BOOL";
 	case FLOAT : return "FLOAT";
 	case STRING : return "VARCHAR(50)";

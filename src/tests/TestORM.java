@@ -1,18 +1,13 @@
 package tests;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import orm.DataField;
-import orm.DataTypes;
-import orm.Entity;
 import orm.ORM;
 import orm.ORMFactory;
 import orm.exceptions.DaoObjectNotValidException;
@@ -23,10 +18,11 @@ import tests.examples_entities.User;
 import tests.examples_entities.Vehicle;
 import tests.utils.DatabaseData;
 
-class TestCreate {
+class TestORM {
 	
 //	Fixture à l'arrache hopla
 
+	@SuppressWarnings("unchecked")
 	public static AbstractDatabaseData setupDb() throws SQLException, DaoObjectNotValidException {
 		
 		AbstractDatabaseData data = new DatabaseData();
@@ -35,11 +31,11 @@ class TestCreate {
 		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
 		
 		User u = new User();
-		u.name = "Aline";
+		u.setName("Aline");
 		orm.create(u);
 		
 		User u2 = new User();
-		u2.name = "Marc";
+		u2.setName("Marc");
 		orm.create(u2);
 		
 		return data;
@@ -53,6 +49,9 @@ class TestCreate {
 		
 		
 		System.out.println("getting ORM...");
+		
+		
+		@SuppressWarnings("unused")
 		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
 	}
 
@@ -65,7 +64,7 @@ class TestCreate {
 		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
 		
 		User u = new User();
-		u.name = "Marc";
+		u.setName("Marc");
 		orm.create(u);
 		
 	}
@@ -87,7 +86,7 @@ class TestCreate {
 		
 		User u = orm.getOne(selectors);
 		
-		System.out.println("User that we got : " + u.name);
+		System.out.println("User that we got : " + u.getName());
 	}
 	
 	@Test
@@ -112,7 +111,7 @@ class TestCreate {
 		
 		User u = orm.getById(1);
 		
-		System.out.println("User that we got : " + u.name);
+		System.out.println("User that we got : " + u.getName());
 	}
 
 	
@@ -125,13 +124,13 @@ class TestCreate {
 
 		User u = orm.getById(1);
 		
-		u.name = "Un autre nom";
+		u.setName("Un autre nom");
 		
 		orm.persist(u);
 		
 		User autre = orm.getById(1);
 		
-		assert autre.name.equals(u.name);
+		assert autre.getName().equals(u.getName());
 				
 	}
 	

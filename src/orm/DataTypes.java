@@ -10,5 +10,5 @@ public enum DataTypes {
 	BIGINT, 
 	DATE,
 	BOOLEAN, 
-	FOREIGN
+	FOREIGN_ID
 }
