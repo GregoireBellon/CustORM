@@ -1,7 +1,5 @@
 package orm;
 
-import java.util.List;
-
 // Entity
 
 public abstract class Entity{

@@ -13,9 +13,6 @@ import java.util.List;
 import orm.Constraint;
 import orm.DataField;
 import orm.DataTypes;
-import orm.annotations.Column;
-import orm.annotations.Foreign;
-import orm.annotations.NotNull;
 import orm.annotations.Table;
 import orm.selection.Comparator;
 import orm.selection.Selector;
@@ -258,8 +255,6 @@ public int createTable(String table_name, List<DataField> fields) {
 
 		try {
 			query_content += ", ";
-
-			java.lang.reflect.Field foreign_field;
 
 			query_content += " FOREIGN KEY ("+field.getName_in_db() + ") REFERENCES " + field.getForeign().getForeign_class().getAnnotation(Table.class).name() + "(" +  field.getForeign().getForeign_attribute_name() + ")" ;
 

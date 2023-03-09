@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import orm.annotations.Column;
-import orm.annotations.Foreign;
 import orm.annotations.Table;
 
 public class DataField {

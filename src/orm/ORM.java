@@ -7,12 +7,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import orm.SQLFormatters.AbstractSQLFormatter;
 import orm.annotations.Column;
 import orm.annotations.Foreign;
@@ -210,7 +207,6 @@ public class ORM <T extends Entity>{
 
 		for(DataField field : fields) {
 
-			System.out.println("Trying datafield " + field.getClass_field_name());
 			try {
 
 				field.setValue(type.getField(field.getClass_field_name()).get(object));
@@ -312,7 +308,7 @@ public class ORM <T extends Entity>{
 		//		Le checking est fait dans la fonction coherenceChecking
 
 		try {
-			@SuppressWarnings("unchecked")
+
 			List<DescribeField> private_fields = (List<DescribeField>) mon_entite.getMethod("getPrivateFields").invoke(null);
 
 			System.out.println("Nb de private fields : " + private_fields.size());
@@ -364,6 +360,8 @@ public class ORM <T extends Entity>{
 
 		//		Check que pour chaque field déclaré, il soit publique, ou ai un getter/setter.
 		try {
+			
+			@SuppressWarnings("unchecked")
 			List<DescribeField> private_fields = (List<DescribeField>) mon_entite.getMethod("getPrivateFields").invoke(null);
 
 			for(DescribeField column : private_fields){
