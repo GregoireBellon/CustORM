@@ -19,7 +19,7 @@ public class ORMFactory<T extends Entity>{
 
 		AbstractSQLFormatter formatter = SQLFormatterFactory.get(data);
 		
-		return new ORM<T>(classe, formatter);
+		return new ORM<T>(classe, formatter, data.getPrivateFields(classe));
 	}
 	
 }

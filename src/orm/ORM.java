@@ -28,21 +28,32 @@ public class ORM <T extends Entity>{
 	private String table_name; 
 	private List<DataField> fields;
 
+	private List<DescribeField> private_fields;
+	
 	private AbstractSQLFormatter formatter;
 
 
 
+	public ORM(Class<? extends Entity> type, AbstractSQLFormatter formatter) throws DaoObjectNotValidException  { 
+
+		this(type, formatter, new ArrayList<DescribeField>());
+		
+	}
+	
 	@SuppressWarnings("unchecked")
-	public ORM(Class<? extends Entity> type, AbstractSQLFormatter formatter) throws DaoObjectNotValidException { 
-		this.type = (Class<T>) type; 
+	public ORM(Class<? extends Entity> type, AbstractSQLFormatter formatter, List<DescribeField> private_fields)throws DaoObjectNotValidException{
+		
+		this.type = (Class<T>) type;
+		
 		this.formatter = formatter;
 
-		coherenceChecking(type);		
+		coherenceChecking(type, private_fields);		
 
 		this.table_name = type.getAnnotation(Table.class).name();
-
-		this.fields = getFields(type);
-
+		
+		this.private_fields = private_fields;
+		
+		this.fields = getFields(type, private_fields);		
 	}
 
 
@@ -69,7 +80,7 @@ public class ORM <T extends Entity>{
 
 		try {
 
-			List<DataField> fields = getFields(this.type);
+			List<DataField> fields = getFields(this.type, this.private_fields);
 
 			this.formatter.selectOne(table_name, fields, selectors);
 
@@ -123,7 +134,7 @@ public class ORM <T extends Entity>{
 
 		try {
 
-			List<DataField> object_fields = getFields(this.type);
+			List<DataField> object_fields = getFields(this.type, this.private_fields);
 
 			List<List<DataField>> query_result =  this.formatter.selectMultiple(table_name, object_fields, selectors, limit);
 
@@ -263,8 +274,7 @@ public class ORM <T extends Entity>{
 
 
 
-	@SuppressWarnings("unchecked")
-	public static List<DataField> getFields(Class<? extends Entity> mon_entite) throws DaoObjectNotValidException {
+	public static List<DataField> getFields(Class<? extends Entity> mon_entite, List<DescribeField> private_fields) throws DaoObjectNotValidException {
 
 		String table_name = mon_entite.getAnnotation(Table.class).name();
 
@@ -309,8 +319,6 @@ public class ORM <T extends Entity>{
 
 		try {
 
-			List<DescribeField> private_fields = (List<DescribeField>) mon_entite.getMethod("getPrivateFields").invoke(null);
-
 			System.out.println("Nb de private fields : " + private_fields.size());
 
 			for(DescribeField field : private_fields) {
@@ -324,8 +332,7 @@ public class ORM <T extends Entity>{
 
 			}
 
-		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-				| SecurityException e) {
+		} catch (IllegalArgumentException |  SecurityException e) {
 			// Cette exception est déja check par le coherence checking, elle ne peut pas arriver
 			e.printStackTrace();
 		}
@@ -336,13 +343,11 @@ public class ORM <T extends Entity>{
 
 
 
-	public static void coherenceChecking(Class<? extends Entity> mon_entite) throws DaoObjectNotValidException {
+	public static void coherenceChecking(Class<? extends Entity> mon_entite, List<DescribeField> private_fields) throws DaoObjectNotValidException {
 
 		if(!mon_entite.isAnnotationPresent(Table.class)) {
 			throw new DaoObjectNotValidException("This object is not declared has a database table");
 		}		
-
-
 
 
 		try {
@@ -361,9 +366,6 @@ public class ORM <T extends Entity>{
 		//		Check que pour chaque field déclaré, il soit publique, ou ai un getter/setter.
 		try {
 			
-			@SuppressWarnings("unchecked")
-			List<DescribeField> private_fields = (List<DescribeField>) mon_entite.getMethod("getPrivateFields").invoke(null);
-
 			for(DescribeField column : private_fields){
 				try {
 					mon_entite.getMethod(StringConversions.toLowerCamelCase("get_"+column.getClassField_name()));
@@ -376,30 +378,31 @@ public class ORM <T extends Entity>{
 							+ "put it public or create getter in the form of getMyField");
 				}
 			}	
-		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-				| SecurityException e1) {
+		} catch (IllegalArgumentException | SecurityException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 
 	}
 
-	public static void createTable(Class<? extends Entity> mon_entite, AbstractSQLFormatter formatter) throws DaoObjectNotValidException {
+	public static void createTable(Class<? extends Entity> mon_entite, AbstractSQLFormatter formatter, List<DescribeField> private_fields) throws DaoObjectNotValidException {
 
-		coherenceChecking(mon_entite);
+		coherenceChecking(mon_entite, private_fields);
 
 		String table_name = mon_entite.getAnnotation(Table.class).name();
 
-		List<DataField> fields =  ORM.getFields(mon_entite);
+		List<DataField> fields =  ORM.getFields(mon_entite, private_fields);
 
 		formatter.createTable(table_name, fields);
-
 
 	}
 
 	public static void dropTable(Class<? extends Entity> mon_entite, AbstractSQLFormatter formatter) throws DaoObjectNotValidException {
 
-		coherenceChecking(mon_entite);
+		if(!mon_entite.isAnnotationPresent(Table.class)) {
+			throw new DaoObjectNotValidException("This object is not declared has a database table");
+		}		
+		
 		formatter.dropTable(mon_entite.getAnnotation(Table.class).name());
 
 	}

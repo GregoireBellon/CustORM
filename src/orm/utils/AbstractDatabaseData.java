@@ -1,7 +1,11 @@
 package orm.utils;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
+import orm.DescribeField;
 import orm.Entity;
 import orm.ORM;
 import orm.SQLFormatters.AbstractSQLFormatter;
@@ -38,8 +42,8 @@ public abstract class AbstractDatabaseData {
 
 			if(rebuild) {
 				for(Class<? extends Entity> classe : classes){
-
-					ORM.createTable(classe, formatter);
+								
+					ORM.createTable(classe, formatter, getPrivateFields(classe));
 
 				}
 
@@ -56,5 +60,12 @@ public abstract class AbstractDatabaseData {
 		}
 
 		public abstract String getDatabasrUrl();
+		
+		
+		public List<DescribeField> getPrivateFields(Class<? extends Entity> entity_class){
+			return this.ListPrivateFields().getOrDefault(entity_class, new ArrayList<DescribeField>());			
+		}
+		
+		public abstract Map<Class<? extends Entity>, List<DescribeField>> ListPrivateFields();
 
 	}
