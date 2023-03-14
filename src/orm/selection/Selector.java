@@ -1,30 +1,28 @@
 package orm.selection;
 
-import orm.DataField;
-
 public class Selector {
 	
-	private DataField a;
-	private Object b;
+	private String field_in_db;
+	private Object comparated;
 	
 	private Comparator comparator;
 	
-	public Selector(DataField a, Comparator comp, Number b) {
-		this.a = a; 
+	public Selector(String field_in_db, Comparator comp, Object comparated) {
+		this.field_in_db = field_in_db; 
 		this.comparator = comp; 
-		this.b = b;
+		this.comparated = comparated;
 	}
 		
-	public DataField getA() {
-		return a;
+	public String getFieldInDb() {
+		return this.field_in_db;
 	}
 	
 	public Comparator getComparator() {
-		return comparator;
+		return this.comparator;
 	}
 	
-	public Object getB() {
-		return b;
+	public Object getComparated() {
+		return this.comparated;
 	}	
 	
 }
