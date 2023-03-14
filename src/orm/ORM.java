@@ -5,6 +5,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -75,6 +76,10 @@ public class ORM <T extends Entity>{
 
 	}
 
+	public Connection getRawSQLConnection() {
+		return this.formatter.getRawSQLConnection();
+	}
+	
 	//	TODO : HANDLE SQL EXCEPTION
 	public T getOne(List<List<Selector>> selectors) throws NoSuchFieldException, SQLException {
 
