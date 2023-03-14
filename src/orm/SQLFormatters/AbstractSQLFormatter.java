@@ -25,6 +25,8 @@ public abstract class AbstractSQLFormatter {
 	
 	public abstract void update(String table_name, List<DataField> fields, List<List<Selector>> selectors);
 		
+	public abstract void delete(String table_name, List<List<Selector>> selectors);
+	
 	public abstract int createTable(String table_name, List<DataField> fields);
 		
 	public abstract int dropTable(String table_name);

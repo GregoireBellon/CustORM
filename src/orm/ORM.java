@@ -6,6 +6,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -74,7 +76,6 @@ public class ORM <T extends Entity>{
 		s.add(new Selector(id.getName_in_db(), Comparator.EQUALS, num_id));
 
 		return this.getOne(selectors);
-
 	}
 
 // les selectors fonctionnent comme : [[A ET B ET C] OU [D ET E ...] OU ...]
@@ -220,7 +221,25 @@ public class ORM <T extends Entity>{
 		selector.add(id_equality);
 
 		formatter.update(this.table_name, populated, selector);
+	}
+	
+	public void delete(T deleted) {
+		
+		List<DataField> populated = this.populateToFields(this.fields, deleted);
 
+		List<List<Selector>> selector = new ArrayList<List<Selector>>();
+
+		List<Selector> id_equality = new ArrayList<Selector>();
+
+		populated.stream().filter(field -> field.getType() == DataTypes.ID)
+		.collect(Collectors.toList())
+		.forEach(field -> id_equality.add(new Selector(field.getName_in_db(), Comparator.EQUALS, (Number) field.getValue())));;
+
+		selector.add(id_equality);
+		
+		formatter.delete(this.table_name, selector);
+
+				
 	}
 	
 	public long count() {
