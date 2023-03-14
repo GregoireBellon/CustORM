@@ -289,6 +289,45 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 	}
 
+	
+	@Override
+	public void delete(String table_name, List<List<Selector>> selectors) {
+		
+		String query_content = "DELETE FROM " + table_name + " ";
+		
+		query_content += whereQuery(selectors);
+		
+		Connection con = null;
+		PreparedStatement preparedStmt = null;
+
+		try {
+			
+			con = this.getRawSQLConnection();
+			preparedStmt = con.prepareStatement(query_content);
+
+			preparedStmt.execute();
+			preparedStmt.close();
+
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}finally {
+
+			try {
+
+				if(con!=null)
+					con.close();
+
+				if(preparedStmt!=null)
+					preparedStmt.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}			
+		}
+	}
+
+	
 	@Override
 	public int createTable(String table_name, List<DataField> fields) {
 
@@ -495,5 +534,6 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 		default : return "=";
 		}
 	}
+
 
 }

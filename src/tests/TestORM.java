@@ -134,4 +134,21 @@ class TestORM {
 				
 	}
 	
+	
+	@Test
+	void delete() throws SQLException, DaoObjectNotValidException, NoSuchFieldException {
+		AbstractDatabaseData data = setupDb();
+
+		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
+		
+		User u = orm.getById(1);
+		
+		orm.delete(u);
+		
+		List<User> u_l = orm.getAll();
+		
+		assert u_l.size() == 1;
+		
+	}
+	
 }

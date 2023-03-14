@@ -73,7 +73,6 @@ public class ORM <T extends Entity>{
 		s.add(new Selector(id, Comparator.EQUALS, num_id));
 
 		return this.getOne(selectors);
-
 	}
 
 	public Connection getRawSQLConnection() {
@@ -216,7 +215,25 @@ public class ORM <T extends Entity>{
 		selector.add(id_equality);
 
 		formatter.update(this.table_name, populated, selector);
+	}
+	
+	public void delete(T deleted) {
+		
+		List<DataField> populated = this.populateToFields(this.fields, deleted);
 
+		List<List<Selector>> selector = new ArrayList<List<Selector>>();
+
+		List<Selector> id_equality = new ArrayList<Selector>();
+
+		populated.stream().filter(field -> field.getType() == DataTypes.ID)
+		.collect(Collectors.toList())
+		.forEach(field -> id_equality.add(new Selector(field, Comparator.EQUALS, (Number) field.getValue())));;
+
+		selector.add(id_equality);
+		
+		formatter.delete(this.table_name, selector);
+
+				
 	}
 
 	private List<DataField> populateToFields(List<DataField> fields, T object){
