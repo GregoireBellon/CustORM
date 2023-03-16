@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -57,6 +58,10 @@ public class ORM <T extends Entity>{
 		this.fields = getFields(type, private_fields);		
 	}
 
+	
+	public Connection getRawSQLConnection() {
+		return formatter.getRawSQLConnection();
+	}
 
 	//	Récupère le premier champ ID
 	public T getById(BigInteger num_id) throws NoSuchFieldException {
@@ -73,6 +78,8 @@ public class ORM <T extends Entity>{
 
 		s.add(new Selector(id.getName_in_db(), Comparator.EQUALS, num_id));
 
+		selectors.add(s);
+		
 		return this.getOne(selectors);
 	}
 
@@ -190,7 +197,7 @@ public class ORM <T extends Entity>{
 				.filter(field -> 
 				{
 					try {
-						return !(field.getType() == DataTypes.ID) && field.getValue() != null;
+						return (field.getType() != DataTypes.ID) && field.getValue() != null;
 					} catch (IllegalArgumentException e) {
 						System.err.println("ORM : Error while accessing to " + inserted.getClass().toString() + " object.\n"
 								+ "Field : " + field.getClass_field_name());
