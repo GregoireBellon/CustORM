@@ -181,8 +181,7 @@ public class ORM <T extends Entity>{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (NoResult e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+
 		}
 
 		return ret;
