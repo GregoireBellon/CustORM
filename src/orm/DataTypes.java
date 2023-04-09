@@ -10,5 +10,6 @@ public enum DataTypes {
 	BIGINT, 
 	DATE,
 	BOOLEAN, 
-	FOREIGN_ID
+	FOREIGN_ID,
+	SHA256,
 }

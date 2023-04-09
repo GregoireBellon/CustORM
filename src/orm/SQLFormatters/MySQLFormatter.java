@@ -341,8 +341,17 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 			query_content += this.fieldCreateLine(field);
 		}
 
+		
+		List<DataField> unique_fields = fields.stream().filter(f -> f.getConstraints().contains(Constraint.UNIQUE)).toList();
+		
+		for(DataField field : unique_fields) {
+			query_content +=", ";
+			query_content += "UNIQUE ("+field.getName_in_db() + ")";
+		}
+		
 		List<DataField> foreign_keys = fields.stream().filter(f -> f.getForeign()!=null).toList();
 
+		
 		for(int i = 0; i < foreign_keys.size(); i++) {
 			DataField field = foreign_keys.get(i);
 
@@ -518,6 +527,7 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 		case STRING : return "VARCHAR(50)";
 		case UUID : return "UUID";
 		case RAW : return "BLOB";
+		case SHA256 : return "VARCHAR(65) NOT NULL";
 		}
 		return null;
 	}

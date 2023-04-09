@@ -12,6 +12,7 @@ import orm.annotations.Column;
 import orm.annotations.Foreign;
 import orm.annotations.Id;
 import orm.annotations.Table;
+import orm.annotations.Unique;
 
 @Table(name = "Users")
 public class User extends Entity {
@@ -19,6 +20,13 @@ public class User extends Entity {
 	@Id
 	@Column(datatype = DataTypes.ID, name = "id")
 	public BigInteger id;
+	
+	@Unique
+	@Column(datatype = DataTypes.STRING, name="unique_str")
+	public String unique_str;
+	
+	@Column(datatype = DataTypes.SHA256, name="hash")
+	public String hash;
 	
 	private String name;
 	

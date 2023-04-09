@@ -17,6 +17,7 @@ import orm.annotations.Foreign;
 import orm.annotations.Id;
 import orm.annotations.NotNull;
 import orm.annotations.Table;
+import orm.annotations.Unique;
 import orm.exceptions.DaoObjectNotValidException;
 import orm.selection.Comparator;
 import orm.selection.Selector;
@@ -317,6 +318,9 @@ public class ORM <T extends Entity>{
 				}
 				if(field.isAnnotationPresent(NotNull.class)) {
 					added_datafield.getConstraints().add(Constraint.NOT_NULL);
+				}
+				if(field.isAnnotationPresent(Unique.class)) {
+					added_datafield.getConstraints().add(Constraint.UNIQUE);
 				}
 				if(field.isAnnotationPresent(Foreign.class)) {
 
