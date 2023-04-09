@@ -5,8 +5,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.math.BigInteger;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,6 +19,7 @@ import orm.annotations.NotNull;
 import orm.annotations.Table;
 import orm.annotations.Unique;
 import orm.exceptions.DaoObjectNotValidException;
+import orm.exceptions.NoResult;
 import orm.selection.Comparator;
 import orm.selection.Selector;
 import orm.utils.StringConversions;
@@ -58,10 +59,15 @@ public class ORM <T extends Entity>{
 		this.fields = getFields(type, private_fields);		
 	}
 
+	
+	public Connection getRawSQLConnection() {
+		return formatter.getRawSQLConnection();
+	}
 
 	//	Récupère le premier champ ID
-	public T getById(long num_id) throws NoSuchFieldException, SQLException {
-		DataField id = fields.stream().filter(data -> data.getType() == DataTypes.ID).toList().get(0);
+	public T getById(BigInteger num_id) throws NoSuchFieldException {
+		
+		DataField id = fields.stream().filter(data -> data.getConstraints().contains(Constraint.ID)).toList().get(0);
 
 		if(id == null) {
 			throw new NoSuchFieldException("There is no id field in this object " + type);
@@ -71,18 +77,18 @@ public class ORM <T extends Entity>{
 
 		List<Selector> s = new ArrayList<Selector>();
 
-		s.add(new Selector(id, Comparator.EQUALS, num_id));
+		s.add(new Selector(id.getName_in_db(), Comparator.EQUALS, num_id));
 
+		selectors.add(s);
+		
 		return this.getOne(selectors);
 	}
 
-	public Connection getRawSQLConnection() {
-		return this.formatter.getRawSQLConnection();
-	}
-	
-	//	TODO : HANDLE SQL EXCEPTION
-	public T getOne(List<List<Selector>> selectors) throws NoSuchFieldException, SQLException {
-
+// les selectors fonctionnent comme : [[A ET B ET C] OU [D ET E ...] OU ...]
+	public T getOne(List<List<Selector>> selectors)  {
+		
+		T obj = null;
+		
 		try {
 
 			List<DataField> fields = getFields(this.type, this.private_fields);
@@ -91,11 +97,10 @@ public class ORM <T extends Entity>{
 
 			Constructor<T> empty_constructor = type.getConstructor(new Class<?>[]{});
 
-			T obj = empty_constructor.newInstance(new Object[] {});
+			obj = empty_constructor.newInstance(new Object[] {});
 
 			populateFromFields(fields, obj);
 
-			return obj;
 
 		} catch (NoSuchMethodException | SecurityException e) {
 			// TODO Auto-generated catch block
@@ -115,9 +120,12 @@ public class ORM <T extends Entity>{
 		} catch (InvocationTargetException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (NoResult e) {
+//			Ce n'est pas une exception à proprement parler, mais Java ne me permet pas de rendre ça plus élégant
 		}
 
-		return null;
+		return obj;
+		
 	}
 
 	public List<T> getAll() {
@@ -173,13 +181,15 @@ public class ORM <T extends Entity>{
 		} catch (InvocationTargetException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (NoResult e) {
+
 		}
 
 		return ret;
 	}
 
 
-	public long create(T inserted) {
+	public BigInteger create(T inserted) {
 
 		List<DataField> populated = this.populateToFields(this.fields, inserted);
 
@@ -187,7 +197,7 @@ public class ORM <T extends Entity>{
 				.filter(field -> 
 				{
 					try {
-						return !(field.getType() == DataTypes.ID) && field.getValue() != null;
+						return (field.getType() != DataTypes.ID) && field.getValue() != null;
 					} catch (IllegalArgumentException e) {
 						System.err.println("ORM : Error while accessing to " + inserted.getClass().toString() + " object.\n"
 								+ "Field : " + field.getClass_field_name());
@@ -196,7 +206,7 @@ public class ORM <T extends Entity>{
 				}
 						).collect(Collectors.toList());
 
-		long id = formatter.insert(table_name, fields_excepted_id);
+		BigInteger id = formatter.insert(table_name, fields_excepted_id);
 
 		return id;
 	}
@@ -211,7 +221,7 @@ public class ORM <T extends Entity>{
 
 		populated.stream().filter(field -> field.getType() == DataTypes.ID)
 		.collect(Collectors.toList())
-		.forEach(field -> id_equality.add(new Selector(field, Comparator.EQUALS, (Number) field.getValue())));;
+		.forEach(field -> id_equality.add(new Selector(field.getName_in_db(), Comparator.EQUALS, (Number) field.getValue())));;
 
 		selector.add(id_equality);
 
@@ -228,13 +238,23 @@ public class ORM <T extends Entity>{
 
 		populated.stream().filter(field -> field.getType() == DataTypes.ID)
 		.collect(Collectors.toList())
-		.forEach(field -> id_equality.add(new Selector(field, Comparator.EQUALS, (Number) field.getValue())));;
+		.forEach(field -> id_equality.add(new Selector(field.getName_in_db(), Comparator.EQUALS, (Number) field.getValue())));;
 
 		selector.add(id_equality);
 		
 		formatter.delete(this.table_name, selector);
 
 				
+	}
+	
+	public long count() {
+		
+		return this.count(new ArrayList<List<Selector>>());
+		
+	}
+	
+	public long count(List<List<Selector>> selectors) {
+		return formatter.count(this.table_name, selectors);
 	}
 
 	private List<DataField> populateToFields(List<DataField> fields, T object){
@@ -270,6 +290,7 @@ public class ORM <T extends Entity>{
 
 		for(DataField field : fields) {
 			try {
+				
 				type.getField(field.getClass_field_name()).set(object, field.getValue());
 
 			}
@@ -279,12 +300,23 @@ public class ORM <T extends Entity>{
 				e.printStackTrace();
 
 			} catch (NoSuchFieldException e) {
+
+				Class<?> function_argument_type = field.getClass_field_type();
+				
 				try {
-					Method setter = field.getEntity_class().getMethod(StringConversions.toLowerCamelCase("set_"+field.getClass_field_name()), field.getClass_field_type());
+					
+					
+					if(field.getValue() != null) {
+						function_argument_type = field.getValue().getClass();
+					}
+					
+					Method setter = field.getEntity_class().getMethod(StringConversions.toLowerCamelCase("set_"+field.getClass_field_name()), function_argument_type);
 					setter.invoke(object, field.getValue());
 
 				}catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException  e1) {
 					//				Erreur check dans coherence exception
+					System.err.println("Couldn't populate " + field.getClass_field_name() +" because the result sent by the database doesn't match the type of the field "
+							+ "\n (looking for "+ StringConversions.toLowerCamelCase("set_"+field.getClass_field_name()) +"(" + function_argument_type + " ) because the database sent " + field.getValue());
 					e1.printStackTrace();
 				}
 

@@ -8,7 +8,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import orm.DataField;
 import orm.ORM;
 import orm.ORMFactory;
 import orm.exceptions.DaoObjectNotValidException;
@@ -89,7 +88,7 @@ class TestORM {
 
 		List<Selector> s = new ArrayList<Selector>();
 
-		s.add(new Selector(new DataField(User.class.getField("id")), Comparator.EQUALS, 1));
+		s.add(new Selector( "id" , Comparator.EQUALS, 1));
 
 		selectors.add(s);
 
@@ -111,6 +110,17 @@ class TestORM {
 
 	}
 
+	void count() throws SQLException, DaoObjectNotValidException, NoSuchFieldException, SecurityException {
+
+		AbstractDatabaseData data = setupDb();
+
+		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
+
+		long users = orm.count();
+
+		assert users == 2;
+	}
+
 	@Test
 	void getByID() throws SQLException, DaoObjectNotValidException, NoSuchFieldException, SecurityException{
 
@@ -118,7 +128,7 @@ class TestORM {
 
 		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
 
-		User u = orm.getById(1);
+		User u = orm.getById(BigInteger.valueOf(1));
 
 		System.out.println("User that we got : " + u.getName());
 	}
@@ -131,13 +141,13 @@ class TestORM {
 
 		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
 
-		User u = orm.getById(1);
+		User u = orm.getById(BigInteger.valueOf(1));
 
 		u.setName("Un autre nom");
 
 		orm.persist(u);
 
-		User autre = orm.getById(1);
+		User autre = orm.getById(BigInteger.valueOf(1));
 
 		assert autre.getName().equals(u.getName());
 
@@ -149,9 +159,9 @@ class TestORM {
 		AbstractDatabaseData data = setupDb();
 
 		ORM<User> orm = new ORMFactory<User>(data).getORM(User.class);
-
-		User u = orm.getById(1);
-
+		
+		User u = orm.getById(BigInteger.valueOf(1L));
+		
 		orm.delete(u);
 
 		List<User> u_l = orm.getAll();
@@ -160,7 +170,4 @@ class TestORM {
 
 	}
 
-	@Test
-	void hash() throws NoSuchAlgorithmException {
-	}
 }

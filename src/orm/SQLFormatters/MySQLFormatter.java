@@ -1,5 +1,6 @@
 package orm.SQLFormatters;
 
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -14,6 +15,7 @@ import orm.Constraint;
 import orm.DataField;
 import orm.DataTypes;
 import orm.annotations.Table;
+import orm.exceptions.NoResult;
 import orm.selection.Comparator;
 import orm.selection.Selector;
 
@@ -26,7 +28,7 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 	}
 
 	@Override
-	public long insert(String table_name, List<DataField> fields) {
+	public BigInteger insert(String table_name, List<DataField> fields) {
 
 		System.out.println("Inserting");
 
@@ -53,14 +55,14 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 		System.out.println("Final query : " + query);
 
-		long ret = 0;
+		BigInteger ret = BigInteger.valueOf(0);
 
 		Connection con = null;
 		PreparedStatement preparedStmt = null;
-		
-		
+
+
 		try {
-			
+
 			con = this.getRawSQLConnection();
 			preparedStmt = con.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
 
@@ -81,14 +83,14 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 			result.next();
 
-			ret = result.getLong(1);
+			ret = BigInteger.valueOf(result.getLong(1));
 
 			preparedStmt.close();
 
 		} catch (SQLException e1) {
 			e1.printStackTrace();
 		}finally {
-			
+
 			try {
 				if(con!=null)
 					con.close();
@@ -107,7 +109,7 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 	}
 
 	@Override
-	public void selectOne(String table_name, List<DataField> fields, List<List<Selector>> selectors)  {
+	public void selectOne(String table_name, List<DataField> fields, List<List<Selector>> selectors) throws NoResult  {
 
 		String query = "SELECT * FROM " + table_name + " ";
 
@@ -119,27 +121,30 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 		Connection con = null;
 		PreparedStatement st = null;		
-		
+
 		try {
-			
+
 			con = this.getRawSQLConnection();
 			st = con.prepareStatement(query);
 
 			ResultSet rs = st.executeQuery();
 
-			if(rs.next()) {
-
-
-				for(DataField field : fields) {
-					field.setValue(rs.getObject(field.getName_in_db()));		
-				}
-
+			//			Vérifie que le ResultSet n'est pas empty (ce nom de fonction n'a aucun sens)
+			if(!rs.isBeforeFirst()) {
+				throw new NoResult();
 			}
+
+			rs.next();
+
+			for(DataField field : fields) {
+				field.setValue(rs.getObject(field.getName_in_db()));		
+			}
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
-			
+
 			try {
 				if(con!=null)
 					con.close();
@@ -157,7 +162,7 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 	@Override
 	public List<List<DataField>> selectMultiple(String table_name, List<DataField> fields, List<List<Selector>> selectors,
-			int limit) {
+			int limit) throws NoResult {
 
 		String query = "SELECT * FROM " + table_name + " ";
 		query += whereQuery(selectors);
@@ -167,14 +172,17 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 		PreparedStatement st = null;
 		List<List<DataField>> ret = new ArrayList<List<DataField>>();
 
-		
+
 		try {
-			
+
 			con = this.getRawSQLConnection();
 			st = con.prepareStatement(query);
 
 			ResultSet rs = st.executeQuery();
 
+			if(!rs.isBeforeFirst()) {
+				throw new NoResult();
+			}
 
 			while(rs.next()) {
 
@@ -200,7 +208,7 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 			e.printStackTrace();
 		}
 		finally {
-			
+
 			try {
 
 				if(con!=null)
@@ -249,7 +257,7 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 
 		try {
-			
+
 			con = this.getRawSQLConnection();
 			preparedStmt = con.prepareStatement(query);
 
@@ -463,6 +471,48 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 
 	@Override
+	public long count(String table_name, List<List<Selector>> selectors) {
+	
+		String query = "SELECT COUNT(*) FROM " + table_name + " " + whereQuery(selectors) + ";";
+		
+		long ret = 0;
+		
+		Connection con = null;
+		PreparedStatement s = null;		
+		
+		try {
+			con = this.getRawSQLConnection();
+			s =  con.prepareStatement(query);
+
+			ResultSet result =  s.executeQuery();
+			
+			result.next();
+			
+			ret = result.getLong(1);
+
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}finally {
+
+			try {
+
+				if(con!=null)
+					con.close();
+
+				if(s!=null)
+					s.close();
+
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}			
+		}
+
+		return ret;
+	}
+	
+	@Override
 	public Connection getRawSQLConnection() {
 
 		try {
@@ -496,7 +546,7 @@ public class MySQLFormatter extends AbstractSQLFormatter {
 
 					Selector sel = it.next();
 
-					clause += sel.getA().getName_in_db() + " " + MySQLFormatter.comparatorConversion(sel.getComparator()) + " " + sel.getB()+ " ";
+					clause += sel.getFieldInDb() + " " + MySQLFormatter.comparatorConversion(sel.getComparator()) + " '" + sel.getComparated()+ "' ";
 
 					if(it.hasNext()) {
 						clause += "AND ";
